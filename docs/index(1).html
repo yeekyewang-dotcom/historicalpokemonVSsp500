@@ -1,0 +1,160 @@
+<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Pokémon vs S&amp;P 500 · 5-Year Backtest</title>
+<style>
+:root{--bg:#fff6f3;--c:#ffffff;--t:#3a2b2e;--m:#8a6f72;--b:#f1dcd6;--acc:#e8899a;--acc2:#f7b9c6;--acc3:#f4a0ad}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#241a1c;--c:#2f2225;--t:#f6e9ea;--m:#caa8ac;--b:#4a3539;--acc:#f0a5b3;--acc2:#f6c7d0;--acc3:#efb0bb}}
+:root[data-theme="dark"]{--bg:#241a1c;--c:#2f2225;--t:#f6e9ea;--m:#caa8ac;--b:#4a3539;--acc:#f0a5b3;--acc2:#f6c7d0;--acc3:#efb0bb}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t);font:15px/1.55 -apple-system,system-ui,Segoe UI,Roboto,sans-serif;padding:env(safe-area-inset-top) 14px 40px}
+main{max-width:980px;margin:auto}
+h1{font-size:22px;margin:18px 0 2px;font-weight:700}
+h2{font-size:15px;margin:0 0 10px;font-weight:700;color:var(--t)}
+.m{color:var(--m);font-size:13px}
+.card{background:var(--c);border:1px solid var(--b);border-radius:16px;padding:16px;margin:14px 0;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.g{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+.big{font-size:25px;font-weight:700}
+.up{color:#2f9e5f}.dn{color:#d9566d}
+.pill{display:inline-block;background:var(--acc2);color:#5a2436;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600;margin-right:6px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+td,th{padding:7px 9px;border-bottom:1px solid var(--b);text-align:right;white-space:nowrap}
+td:first-child,th:first-child{text-align:left}
+.sc{overflow-x:auto}
+svg text{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+.legend span{margin-right:14px;font-size:12px}
+.legend b{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px}
+.note{background:var(--b);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--t);line-height:1.6}
+.note b{color:var(--t)}
+details summary{cursor:pointer;font-weight:600;padding:4px 0}
+.badge{font-size:11px;padding:1px 7px;border-radius:6px;background:var(--acc3);color:#5a2436;font-weight:700;margin-left:6px}
+</style></head>
+<body><main>
+
+<h1>🌸 Pokémon Base Set vs S&amp;P 500 — a 5-year look back (2021–2025)</h1>
+<p class="m">A static, one-time historical backtest — not a live, daily-updating model. Built once from researcher-collected annual data. Academic simulation, not investment advice.</p>
+
+<div class="g" id="kpi"></div>
+
+<div class="card">
+  <h2>Portfolio value over time (£10,000 start)</h2>
+  <svg id="ch" viewBox="0 0 680 320" style="width:100%" role="img" aria-label="Portfolio value over time"></svg>
+  <div class="legend" id="lg"></div>
+</div>
+
+<div class="card">
+  <h2>Total 5-year return, head to head</h2>
+  <svg id="bar" viewBox="0 0 680 230" style="width:100%" role="img" aria-label="Total 5-year return comparison"></svg>
+</div>
+
+<div class="card sc">
+  <h2>The 4 cards individually (£, converted at that year's real exchange rate)</h2>
+  <table id="cardtbl"></table>
+  <p class="m">This is why the algorithm picked what it picked — see the Decisions section below.</p>
+</div>
+
+<div class="card sc">
+  <h2>What the algorithm decided, and why</h2>
+  <div id="decisions"></div>
+  <details style="margin-top:10px"><summary>Full annual scores (all 4 cards, every year)</summary><div id="signals" style="margin-top:8px"></div></details>
+</div>
+
+<div class="card">
+  <h2>How this compares to the live daily model <span class="badge">read this</span></h2>
+  <div class="sc"><table id="compare"></table></div>
+</div>
+
+<div class="card">
+  <h2>Methodology &amp; limitations</h2>
+  <div class="note" id="methodology"></div>
+</div>
+
+<div class="card sc">
+  <h2>Raw data (for verification)</h2>
+  <table id="rawtbl"></table>
+</div>
+
+</main>
+<script src="data.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const f=(n,d=0)=>Number(n).toLocaleString('en-GB',{minimumFractionDigits:d,maximumFractionDigits:d});
+const g=n=>'£'+f(n,0);
+const pc=n=>(n>=0?'+':'')+f(n,1)+'%';
+const cl=n=>n>=0?'up':'dn';
+const COL={'Pokémon algo (4-card, backtested)':'#e8899a','Pokémon buy & hold (equal-weight)':'#9c7bb0','S&P 500':'#5fa3c7'};
+const YEARS=DATA.meta.years, C=DATA.meta.capital, series=DATA.series;
+
+// ---- KPI cards ----
+const names=Object.keys(series);
+const last=n=>series[n][series[n].length-1].value;
+$('#kpi').innerHTML = names.map(n=>{const v=last(n);return `<div class="card"><div class="m">${n}</div><div class="big" style="color:${COL[n]}">${g(v)}</div><div class="${cl(v-C)}">${pc((v/C-1)*100)} over 5 years</div></div>`}).join('');
+
+// ---- Line chart (labelled axes, same style as the live model) ----
+function niceTicks(lo,hi,n){const range=Math.max(hi-lo,1e-6),raw=range/(n-1),mag=Math.pow(10,Math.floor(Math.log10(raw))),norm=raw/mag,step=(norm<1.5?1:norm<3?2:norm<7?5:10)*mag,nLo=Math.floor(lo/step)*step,nHi=Math.ceil(hi/step)*step,t=[];for(let v=nLo;v<=nHi+step/1e6;v+=step)t.push(Math.round(v*100)/100);return t;}
+const allVals=names.flatMap(n=>series[n].map(x=>x.value));
+const yTicks=niceTicks(Math.min(...allVals)*0.95, Math.max(...allVals)*1.05, 6), lo=yTicks[0], hi=yTicks[yTicks.length-1];
+const PX0=78,PX1=650,PY0=14,PY1=270;
+const X=i=>PX0+(YEARS.length>1?i/(YEARS.length-1):0.5)*(PX1-PX0), Y=v=>PY1-(v-lo)/(hi-lo)*(PY1-PY0);
+$('#ch').innerHTML =
+ `<rect x="${PX0}" y="${PY0}" width="${PX1-PX0}" height="${PY1-PY0}" fill="none" stroke="currentColor" opacity=".25"/>` +
+ yTicks.map(v=>`<line x1="${PX0}" x2="${PX1}" y1="${Y(v)}" y2="${Y(v)}" stroke="currentColor" opacity=".1"/><text x="${PX0-8}" y="${Y(v)+3}" font-size="10.5" text-anchor="end" fill="currentColor">£${f(v,0)}</text>`).join('') +
+ YEARS.map((y,i)=>`<line x1="${X(i)}" x2="${X(i)}" y1="${PY1}" y2="${PY1+4}" stroke="currentColor" opacity=".35"/><text x="${X(i)}" y="${PY1+18}" font-size="11" text-anchor="middle" fill="currentColor">${y}</text>`).join('') +
+ `<text x="22" y="${(PY0+PY1)/2}" font-size="11" text-anchor="middle" fill="currentColor" transform="rotate(-90 22 ${(PY0+PY1)/2})">Portfolio value (£)</text>` +
+ `<text x="${(PX0+PX1)/2}" y="${PY1+34}" font-size="11" text-anchor="middle" fill="currentColor">Year</text>` +
+ names.map(n=>`<polyline fill="none" stroke="${COL[n]}" stroke-width="3" points="${series[n].map((x,i)=>`${X(i)},${Y(x.value)}`).join(' ')}"/>`+series[n].map((x,i)=>`<circle cx="${X(i)}" cy="${Y(x.value)}" r="3.5" fill="${COL[n]}"/>`).join('')).join('');
+$('#lg').innerHTML = names.map(n=>`<span><b style="background:${COL[n]}"></b>${n}</span>`).join('');
+
+// ---- Bar chart: total return ----
+const BX0=45,BX1=665,BY0=14,BY1=140,BASE=BY1+10;
+const rets=names.map(n=>(last(n)/C-1)*100);
+const bLo=Math.min(0,...rets)*1.15, bHi=Math.max(...rets)*1.15;
+const bY=v=>BASE-(v-bLo)/(bHi-bLo)*(BASE-BY0);
+const bw=(BX1-BX0)/names.length*0.5;
+$('#bar').innerHTML =
+ `<line x1="${BX0}" x2="${BX1}" y1="${bY(0)}" y2="${bY(0)}" stroke="currentColor" opacity=".35"/>` +
+ names.map((n,i)=>{const cx=BX0+(i+0.5)*(BX1-BX0)/names.length, r=rets[i], y0=bY(0), y1=bY(r), top=Math.min(y0,y1), h=Math.abs(y1-y0);
+   const valueY = r>=0 ? Math.max(BY0+12, top-7) : y0+18;
+   const label = n.split(' (')[0];
+   const labelLines = label === 'Pokémon buy & hold' ? ['Pokémon buy &', 'hold'] : [label];
+   return `<rect x="${cx-bw/2}" y="${top}" width="${bw}" height="${h}" fill="${COL[n]}" rx="4"/>`+
+     `<text x="${cx}" y="${valueY}" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">${pc(r)}</text>`+
+     `<text x="${cx}" y="${BASE+38}" text-anchor="middle" font-size="10.5" fill="currentColor">${labelLines.map((line,j)=>`<tspan x="${cx}" dy="${j?12:0}">${line}</tspan>`).join('')}</text>`
+ }).join('');
+
+// ---- Per-card table ----
+const cardRows=Object.keys(DATA.cards_gbp).map(c=>`<tr><td>${c}</td>${YEARS.map(y=>`<td>£${f(DATA.cards_gbp[c][y],2)}</td>`).join('')}</tr>`).join('');
+$('#cardtbl').innerHTML = `<tr><th>Card</th>${YEARS.map(y=>`<th>${y}</th>`).join('')}</tr>${cardRows}`;
+
+// ---- Decisions ----
+$('#decisions').innerHTML = DATA.decisions.length ? DATA.decisions.map(d=>
+  `<p><b>${d.year}: ${d.action} ${d.card}</b> — score ${d.score}/100, £${f(d.amount_gbp,2)}<br><span class="m">${d.reason}</span></p>`).join('')
+  : '<p class="m">No trades met both the score and cost-edge thresholds across 2022–2025.</p>';
+$('#signals').innerHTML = Object.entries(DATA.signals).map(([y,sigs])=>
+  `<p><b>${y}</b></p><table><tr><th>Card</th><th>Score</th><th>Momentum</th><th>Trend</th><th>Volatility</th></tr>`+
+  sigs.sort((a,b)=>b.score-a.score).map(s=>`<tr><td>${s.card}</td><td>${s.score}</td><td>${pc(s.momentum*100)}</td><td>${pc(s.trend*100)}</td><td>${f(s.volatility*100,1)}%</td></tr>`).join('')+'</table>').join('');
+
+// ---- Compare with live model ----
+$('#compare').innerHTML = `<tr><th></th><th>This historical model</th><th>Live daily model</th></tr>
+<tr><td>Data frequency</td><td>1 observation/year (researcher-collected)</td><td>Daily (automated)</td></tr>
+<tr><td>Decision frequency</td><td>Once a year</td><td>Daily</td></tr>
+<tr><td>Pokémon universe</td><td>Same 4 Base Set cards</td><td>Same 4 Base Set cards + 4 others</td></tr>
+<tr><td>Equity side</td><td>S&amp;P 500 only (passive)</td><td>10 stocks + algorithm</td></tr>
+<tr><td>Price type</td><td>DERIVED (12-month average)</td><td>GUIDE (TCGplayer market price)</td></tr>
+<tr><td>Edge-over-cost rule</td><td>1.0× round-trip cost (breakeven)</td><td>1.5× round-trip cost</td></tr>
+<tr><td>Updates</td><td>Static — built once</td><td>Live — rebuilds nightly</td></tr>`;
+
+// ---- Methodology note ----
+$('#methodology').innerHTML = `<p><b>Cards:</b> ${DATA.meta.card_note}</p>
+<p><b>S&amp;P 500:</b> ${DATA.meta.sp500_note}</p>
+<p><b>Currency:</b> ${DATA.meta.fx_note}</p>
+<p><b>Trading rule change from the live model:</b> ${DATA.meta.edge_note}</p>
+<p><b>Sample size:</b> 5 annual points per asset (4 year-over-year returns) is a genuinely small sample. Momentum, trend and volatility are all computed on very few observations — treat single-year swings with caution, not as proof of a pattern.</p>
+<p><b>No liquidity/volume factor:</b> unlike the live model, this backtest has no transaction-volume data for past years, so the liquidity-cost term was dropped and its weight redistributed (see weights in the raw data below).</p>
+<p><b>UK tax:</b> realised gain this run: £${f(DATA.meta.realised_gain_gbp,2)}, CGT due: £${f(DATA.meta.tax_due_gbp,2)} (£3,000 annual exempt amount, 18% rate — same assumption as the live model).</p>`;
+
+// ---- Raw data ----
+$('#rawtbl').innerHTML = `<tr><th>Series</th>${YEARS.map(y=>`<th>${y}</th>`).join('')}</tr>` +
+ Object.keys(DATA.cards_usd).map(c=>`<tr><td>${c} (USD, as entered)</td>${YEARS.map(y=>`<td>$${f(DATA.cards_usd[c][y],2)}</td>`).join('')}</tr>`).join('') +
+ `<tr><td>S&amp;P 500 (USD avg)</td>${YEARS.map(y=>`<td>$${f(DATA.sp500_usd[y],2)}</td>`).join('')}</tr>` +
+ `<tr><td>USD→GBP rate used</td>${YEARS.map(y=>`<td>${DATA.fx[y]}</td>`).join('')}</tr>`;
+</script>
+</body></html>
